@@ -1,151 +1,152 @@
-# GPU-Accelerated Adaptive Thresholding for Document Binarization (CUDA)
+# 🚀 GPU-Accelerated Adaptive Thresholding using CUDA
 
-## Overview
-This mini-project implements **adaptive thresholding** for grayscale document images in **PGM (P2 ASCII)** format.
+## 📌 Overview
+This project implements **Adaptive Thresholding for Document Binarization** using both:
+- 🟢 CPU (sequential)
+- 🔴 GPU (parallel using CUDA)
 
-Two versions are provided in one CUDA source file:
-- CPU implementation (baseline)
-- GPU implementation using CUDA kernel (parallel)
+The objective is to demonstrate how **GPU parallelism significantly improves performance** for computationally intensive image processing tasks.
 
-The program reads a grayscale image, converts it to binary (black/white), and writes:
-- `output_cpu.pgm`
-- `output_gpu.pgm`
+---
 
-It also reports execution times for CPU and GPU and prints speedup.
-
-## Problem Being Solved
-Global thresholding often fails when document images have:
+## 🧠 Problem Statement
+Traditional global thresholding fails for images with:
 - uneven lighting
 - shadows
 - faded text
 
-Adaptive thresholding solves this by computing a **local threshold per pixel** using neighboring pixels.
+👉 Adaptive thresholding solves this by computing a **local threshold for each pixel**.
 
-## Algorithm Used
-### 1) Adaptive Thresholding (Local Mean)
-For each pixel at `(x, y)`:
-1. Take a local window of size `W x W` centered at `(x, y)`.
-2. Compute local mean intensity:
+---
 
-   `mean(x, y) = sum(window pixels) / number_of_pixels_in_window`
+## ⚙️ Algorithm
+
+For each pixel `(x, y)`:
+
+1. Take a window of size `W × W`
+2. Compute mean intensity:
+
+mean = sum(window pixels) / count
 
 3. Compute threshold:
 
-   `T(x, y) = mean(x, y) - C`
+T = mean - C
 
-4. Binarize:
-- if `pixel(x, y) > T(x, y)` -> `255` (white)
-- else -> `0` (black)
+4. Apply:
+- `pixel > T → 255 (white)`
+- else → `0 (black)`
 
-### 2) Image Processing View (Convolution / Box Filter Idea)
-The local mean step is equivalent to applying a **box filter** (uniform averaging filter).
-- Kernel size: `W x W`
-- Kernel values: all equal (normalized by number of pixels)
+---
 
-So conceptually this is similar to image convolution with an averaging kernel, then thresholding the original image using that local average.
+## ⚡ CPU vs GPU
 
-### 3) CPU vs GPU Strategy
-- CPU: nested loops over all pixels and their local windows.
-- GPU: one CUDA thread handles one output pixel.
-  - Thread index is computed with `blockIdx`, `blockDim`, `threadIdx`.
-  - Each thread safely clamps its window bounds at image borders.
+### 🟢 CPU
+- Sequential processing using nested loops  
+- Processes one pixel at a time  
+- Computationally expensive  
 
-## CUDA Implementation Notes
-- Memory management uses:
-  - `cudaMalloc`
-  - `cudaMemcpy`
-  - `cudaFree`
-- GPU timing uses `cudaEvent_t`.
-- CPU timing uses `std::chrono`.
-- Recommended block size: `16 x 16`.
+### 🔴 GPU
+- One thread per pixel  
+- Thousands of threads run in parallel  
+- Significant speedup for large images  
 
-## Parallelism Strategy
+---
 
-In the GPU implementation, each thread is assigned to process exactly one pixel of the output image. Since each pixel operation is independent, the algorithm is highly parallelizable.
+## 🧵 Parallelism Strategy
+Each CUDA thread processes one pixel independently.
 
-Threads are organized in a 2D grid of blocks (typically 16×16 threads per block), allowing thousands of pixels to be processed simultaneously.
+Threads are organized as:
+- Blocks → `16 × 16`
+- Grid → covers the entire image
 
-## Performance Metric
+👉 This makes the problem **embarrassingly parallel**
 
-Speedup is calculated as:
+---
 
-Speedup = CPU Execution Time / GPU Execution Time
+## 📊 Performance Metric
 
-## Key Observations
+Speedup = CPU Time / GPU Time
 
-- GPU performance is slower for very small images due to overheads such as memory transfer and kernel launch latency.
-- For larger images, GPU significantly outperforms CPU due to parallel processing.
-- Increasing window size (W) increases computational load, which benefits GPU performance more than CPU.
-- CPU and GPU outputs match exactly, confirming correctness of implementation.
+---
 
-## File Format
-Input image must be **PGM P2 (ASCII)** grayscale.
+## 🖼️ Input Image
 
-Example header:
+### 📥 Original Image
+![Input](img.avif)
+
+---
+
+## 🧾 Output Images
+
+### 🟢 CPU Output
+![CPU Output](output_cpu.pgm)
+
+### 🔴 GPU Output
+![GPU Output](output_gpu.pgm)
+
+---
+
+## 📈 Results
+
+| Image Size | W  | CPU Time (ms) | GPU Time (ms) | Speedup |
+|------------|----|---------------|---------------|---------|
+| 8×8        | 7  | 0.007         | 1.33          | 0.005x  |
+| 700×1145   | 7  | 109.63        | 1.68          | 65x     |
+| 700×1145   | 15 | 330.52        | 1.70          | 193x    |
+
+---
+
+## 🔍 Key Observations
+
+- GPU is slower for very small images due to overhead (memory transfer + kernel launch)
+- GPU achieves massive speedup for large images
+- Increasing window size improves GPU efficiency
+- CPU and GPU outputs match exactly (correctness verified)
+
+---
+
+## 🛠️ Tech Stack
+- C++
+- CUDA
+- PGM Image Processing
+
+---
+
+## 📁 Project Structure
+
 ```
-P2
-640 480
-255
-... pixel values ...
+.
+├── main.cu
+├── img.pgm
+├── img.avif
+├── output_cpu.pgm
+├── output_gpu.pgm
+├── sample.pgm
+├── README.md
 ```
 
-## Build Instructions
-Compile with nvcc:
+---
 
+## 🧪 Build & Run
+
+### 🔧 Compile
 ```bash
 nvcc main.cu -o run
 ```
 
-## Run Instructions
-Basic run:
-
+### ▶️ Run
 ```bash
-./run input.pgm
+./run img.pgm 7 5
 ```
 
-Run with custom parameters:
-
+### ⚠️ Notes
+- Input must be PGM (P2 format)
+- Convert images using ImageMagick:
 ```bash
-./run input.pgm 15 7
+convert img.avif -colorspace Gray img.pgm
 ```
-
-Where:
-- first argument: input PGM file
-- second argument: window size `W` (odd value preferred)
-- third argument: constant `C`
-
-## Program Output
-Console output includes:
-- image size
-- chosen `W` and `C`
-- CPU time (ms)
-- GPU time (ms)
-- Speedup = CPU / GPU
-- mismatch count between CPU and GPU outputs
-
-Generated files:
-- `output_cpu.pgm`
-- `output_gpu.pgm`
-
-## Example Input
-A small sample is included as `sample.pgm`.
-
-You can test quickly with:
-
+- Convert output for viewing:
 ```bash
-./run sample.pgm 7 5
+convert output_cpu.pgm output.png
+convert output_gpu.pgm result.png
 ```
-
-## Notes on Performance
-For very small images, GPU may look slower due to kernel launch and memory transfer overhead.
-For larger images, GPU parallelism provides significant performance improvements for larger images.
-Special care is taken at image boundaries to ensure that window operations do not access out-of-bounds memory.
-
-## Source
-Main implementation file:
-- `main.cu`
-
-## License
-This project is licensed under the **MIT License**.
-
-You are free to use, modify, and distribute this code for academic and personal purposes, provided that the original copyright and license notice are retained.
