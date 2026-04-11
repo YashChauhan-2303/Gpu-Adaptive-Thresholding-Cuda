@@ -1,80 +1,94 @@
 #include <cuda_runtime.h>
-
-#include <chrono>
-#include <fstream>
-#include <iostream>
-#include <sstream>
-#include <string>
-#include <vector>
-
-using std::cerr;
-using std::cout;
-using std::endl;
-using std::ifstream;
-using std::ofstream;
-using std::string;
-using std::vector;
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
 
 // Read next token from PGM file while skipping comments starting with '#'.
-static bool readNextToken(ifstream& in, string& token) {
-    while (in >> token) {
-        if (!token.empty() && token[0] == '#') {
-            string discard;
-            std::getline(in, discard);
+static int readNextToken(FILE* in, char* token) {
+    int c;
+    while ((c = fgetc(in)) != EOF) {
+        if (c == ' ' || c == '\n' || c == '\r' || c == '\t') {
             continue;
         }
-        return true;
+        if (c == '#') {
+            while ((c = fgetc(in)) != EOF && c != '\n') {
+                // skip comment until newline
+            }
+            continue;
+        }
+        ungetc(c, in);
+        if (fscanf(in, "%255s", token) == 1) {
+            return 1;
+        }
+        return 0;
     }
-    return false;
+    return 0;
 }
 
-bool readPGM(const string& filename, vector<unsigned char>& image, int& width, int& height) {
-    ifstream in(filename.c_str());
-    if (!in.is_open()) {
-        cerr << "Error: Cannot open input file: " << filename << endl;
-        return false;
+int readPGM(const char* filename, unsigned char** image_out, int* width, int* height) {
+    FILE* in = fopen(filename, "r");
+    if (!in) {
+        fprintf(stderr, "Error: Cannot open input file: %s\n", filename);
+        return 0;
     }
 
-    string token;
-    if (!readNextToken(in, token) || token != "P2") {
-        cerr << "Error: Unsupported or invalid PGM format. Expected P2." << endl;
-        return false;
-    }
-
-    if (!readNextToken(in, token)) {
-        cerr << "Error: Could not read image width." << endl;
-        return false;
-    }
-    width = std::stoi(token);
-
-    if (!readNextToken(in, token)) {
-        cerr << "Error: Could not read image height." << endl;
-        return false;
-    }
-    height = std::stoi(token);
-
-    if (width <= 0 || height <= 0) {
-        cerr << "Error: Invalid image dimensions." << endl;
-        return false;
+    char token[256];
+    if (!readNextToken(in, token) || strcmp(token, "P2") != 0) {
+        fprintf(stderr, "Error: Unsupported or invalid PGM format. Expected P2.\n");
+        fclose(in);
+        return 0;
     }
 
     if (!readNextToken(in, token)) {
-        cerr << "Error: Could not read max gray value." << endl;
-        return false;
+        fprintf(stderr, "Error: Could not read image width.\n");
+        fclose(in);
+        return 0;
     }
-    int maxVal = std::stoi(token);
+    *width = atoi(token);
+
+    if (!readNextToken(in, token)) {
+        fprintf(stderr, "Error: Could not read image height.\n");
+        fclose(in);
+        return 0;
+    }
+    *height = atoi(token);
+
+    if (*width <= 0 || *height <= 0) {
+        fprintf(stderr, "Error: Invalid image dimensions.\n");
+        fclose(in);
+        return 0;
+    }
+
+    if (!readNextToken(in, token)) {
+        fprintf(stderr, "Error: Could not read max gray value.\n");
+        fclose(in);
+        return 0;
+    }
+    int maxVal = atoi(token);
     if (maxVal <= 0 || maxVal > 255) {
-        cerr << "Error: Unsupported max gray value (must be 1..255)." << endl;
-        return false;
+        fprintf(stderr, "Error: Unsupported max gray value (must be 1..255).\n");
+        fclose(in);
+        return 0;
     }
 
-    image.resize(static_cast<size_t>(width) * static_cast<size_t>(height));
-    for (int i = 0; i < width * height; ++i) {
+    size_t size = (size_t)(*width) * (size_t)(*height);
+    *image_out = (unsigned char*)malloc(size);
+    if (!*image_out) {
+        fprintf(stderr, "Error: Memory allocation failed.\n");
+        fclose(in);
+        return 0;
+    }
+
+    for (int i = 0; i < *width * *height; ++i) {
         if (!readNextToken(in, token)) {
-            cerr << "Error: Not enough pixel values in file." << endl;
-            return false;
+            fprintf(stderr, "Error: Not enough pixel values in file.\n");
+            free(*image_out);
+            *image_out = NULL;
+            fclose(in);
+            return 0;
         }
-        int value = std::stoi(token);
+        int value = atoi(token);
         if (value < 0) {
             value = 0;
         }
@@ -82,48 +96,49 @@ bool readPGM(const string& filename, vector<unsigned char>& image, int& width, i
             value = maxVal;
         }
         // Scale to 0..255 if maxVal is not 255.
-        image[i] = static_cast<unsigned char>((value * 255) / maxVal);
+        (*image_out)[i] = (unsigned char)((value * 255) / maxVal);
     }
 
-    return true;
+    fclose(in);
+    return 1;
 }
 
-bool writePGM(const string& filename, const vector<unsigned char>& image, int width, int height) {
-    if (static_cast<int>(image.size()) != width * height) {
-        cerr << "Error: Output image size does not match dimensions." << endl;
-        return false;
+int writePGM(const char* filename, const unsigned char* image, int width, int height) {
+    if (!image) {
+        fprintf(stderr, "Error: Invalid image array.\n");
+        return 0;
     }
 
-    ofstream out(filename.c_str());
-    if (!out.is_open()) {
-        cerr << "Error: Cannot open output file: " << filename << endl;
-        return false;
+    FILE* out = fopen(filename, "w");
+    if (!out) {
+        fprintf(stderr, "Error: Cannot open output file: %s\n", filename);
+        return 0;
     }
 
-    out << "P2\n";
-    out << width << " " << height << "\n";
-    out << "255\n";
+    fprintf(out, "P2\n");
+    fprintf(out, "%d %d\n", width, height);
+    fprintf(out, "255\n");
 
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
-            out << static_cast<int>(image[y * width + x]);
+            fprintf(out, "%d", (int)image[y * width + x]);
             if (x < width - 1) {
-                out << ' ';
+                fputc(' ', out);
             }
         }
-        out << '\n';
+        fputc('\n', out);
     }
 
-    return true;
+    fclose(out);
+    return 1;
 }
 
-void adaptiveThresholdCPU(const vector<unsigned char>& input,
-                          vector<unsigned char>& output,
+void adaptiveThresholdCPU(const unsigned char* input,
+                          unsigned char* output,
                           int width,
                           int height,
                           int windowSize,
                           int C) {
-    output.resize(static_cast<size_t>(width) * static_cast<size_t>(height));
     int radius = windowSize / 2;
 
     for (int y = 0; y < height; ++y) {
@@ -187,56 +202,56 @@ __global__ void adaptiveThresholdKernel(const unsigned char* input,
 }
 
 // Wrapper that handles device memory, kernel launch, and timing.
-float adaptiveThresholdGPU(const vector<unsigned char>& input,
-                           vector<unsigned char>& output,
+float adaptiveThresholdGPU(const unsigned char* input,
+                           unsigned char* output,
                            int width,
                            int height,
                            int windowSize,
                            int C,
-                           dim3 blockSize = dim3(16, 16)) {
-    output.resize(static_cast<size_t>(width) * static_cast<size_t>(height));
-
-    const size_t bytes = static_cast<size_t>(width) * static_cast<size_t>(height) * sizeof(unsigned char);
-    unsigned char* d_input = nullptr;
-    unsigned char* d_output = nullptr;
+                           dim3 blockSize) {
+    size_t bytes = (size_t)width * (size_t)height * sizeof(unsigned char);
+    unsigned char* d_input = NULL;
+    unsigned char* d_output = NULL;
 
     cudaError_t err;
 
-    err = cudaMalloc(reinterpret_cast<void**>(&d_input), bytes);
+    err = cudaMalloc((void**)&d_input, bytes);
     if (err != cudaSuccess) {
-        cerr << "CUDA Error (cudaMalloc d_input): " << cudaGetErrorString(err) << endl;
+        fprintf(stderr, "CUDA Error (cudaMalloc d_input): %s\n", cudaGetErrorString(err));
         return -1.0f;
     }
 
-    err = cudaMalloc(reinterpret_cast<void**>(&d_output), bytes);
+    err = cudaMalloc((void**)&d_output, bytes);
     if (err != cudaSuccess) {
-        cerr << "CUDA Error (cudaMalloc d_output): " << cudaGetErrorString(err) << endl;
+        fprintf(stderr, "CUDA Error (cudaMalloc d_output): %s\n", cudaGetErrorString(err));
         cudaFree(d_input);
         return -1.0f;
     }
 
-    err = cudaMemcpy(d_input, input.data(), bytes, cudaMemcpyHostToDevice);
+    err = cudaMemcpy(d_input, input, bytes, cudaMemcpyHostToDevice);
     if (err != cudaSuccess) {
-        cerr << "CUDA Error (cudaMemcpy H2D): " << cudaGetErrorString(err) << endl;
+        fprintf(stderr, "CUDA Error (cudaMemcpy H2D): %s\n", cudaGetErrorString(err));
         cudaFree(d_input);
         cudaFree(d_output);
         return -1.0f;
     }
 
-    dim3 gridSize((width + blockSize.x - 1) / blockSize.x,
-                  (height + blockSize.y - 1) / blockSize.y);
+    dim3 gridSize;
+    gridSize.x = (width + blockSize.x - 1) / blockSize.x;
+    gridSize.y = (height + blockSize.y - 1) / blockSize.y;
+    gridSize.z = 1;
 
     cudaEvent_t start, stop;
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
 
-    cudaEventRecord(start);
+    cudaEventRecord(start, 0);
     adaptiveThresholdKernel<<<gridSize, blockSize>>>(d_input, d_output, width, height, windowSize, C);
-    cudaEventRecord(stop);
+    cudaEventRecord(stop, 0);
 
     err = cudaGetLastError();
     if (err != cudaSuccess) {
-        cerr << "CUDA Error (Kernel launch): " << cudaGetErrorString(err) << endl;
+        fprintf(stderr, "CUDA Error (Kernel launch): %s\n", cudaGetErrorString(err));
         cudaEventDestroy(start);
         cudaEventDestroy(stop);
         cudaFree(d_input);
@@ -246,7 +261,7 @@ float adaptiveThresholdGPU(const vector<unsigned char>& input,
 
     err = cudaEventSynchronize(stop);
     if (err != cudaSuccess) {
-        cerr << "CUDA Error (cudaEventSynchronize): " << cudaGetErrorString(err) << endl;
+        fprintf(stderr, "CUDA Error (cudaEventSynchronize): %s\n", cudaGetErrorString(err));
         cudaEventDestroy(start);
         cudaEventDestroy(stop);
         cudaFree(d_input);
@@ -257,9 +272,9 @@ float adaptiveThresholdGPU(const vector<unsigned char>& input,
     float gpuMs = 0.0f;
     cudaEventElapsedTime(&gpuMs, start, stop);
 
-    err = cudaMemcpy(output.data(), d_output, bytes, cudaMemcpyDeviceToHost);
+    err = cudaMemcpy(output, d_output, bytes, cudaMemcpyDeviceToHost);
     if (err != cudaSuccess) {
-        cerr << "CUDA Error (cudaMemcpy D2H): " << cudaGetErrorString(err) << endl;
+        fprintf(stderr, "CUDA Error (cudaMemcpy D2H): %s\n", cudaGetErrorString(err));
         cudaEventDestroy(start);
         cudaEventDestroy(stop);
         cudaFree(d_input);
@@ -277,62 +292,84 @@ float adaptiveThresholdGPU(const vector<unsigned char>& input,
 
 int main(int argc, char* argv[]) {
     if (argc < 2) {
-        cout << "Usage: ./run <input.pgm> [windowSize] [C]\n";
-        cout << "Example: ./run input.pgm 15 7\n";
+        printf("Usage: ./run <input.pgm> [windowSize] [C]\n");
+        printf("Example: ./run input.pgm 15 7\n");
         return 1;
     }
 
-    string inputFile = argv[1];
+    const char* inputFile = argv[1];
     int windowSize = 15;
     int C = 7;
 
     if (argc >= 3) {
-        windowSize = std::stoi(argv[2]);
+        windowSize = atoi(argv[2]);
     }
     if (argc >= 4) {
-        C = std::stoi(argv[3]);
+        C = atoi(argv[3]);
     }
 
     if (windowSize <= 0) {
-        cerr << "Error: windowSize must be positive." << endl;
+        fprintf(stderr, "Error: windowSize must be positive.\n");
         return 1;
     }
     if (windowSize % 2 == 0) {
         // Make it odd so the window has a clear center.
         windowSize += 1;
-        cout << "Info: windowSize changed to odd value: " << windowSize << endl;
+        printf("Info: windowSize changed to odd value: %d\n", windowSize);
     }
 
-    vector<unsigned char> inputImage;
+    unsigned char* inputImage = NULL;
     int width = 0;
     int height = 0;
 
-    if (!readPGM(inputFile, inputImage, width, height)) {
+    if (!readPGM(inputFile, &inputImage, &width, &height)) {
         return 1;
     }
 
-    cout << "Loaded image: " << width << " x " << height << endl;
-    cout << "Window size: " << windowSize << ", C: " << C << endl;
+    printf("Loaded image: %d x %d\n", width, height);
+    printf("Window size: %d, C: %d\n", windowSize, C);
 
-    vector<unsigned char> cpuOutput;
-    vector<unsigned char> gpuOutput;
+    size_t size = (size_t)width * (size_t)height;
+    unsigned char* cpuOutput = (unsigned char*)malloc(size);
+    unsigned char* gpuOutput = (unsigned char*)malloc(size);
 
-    auto cpuStart = std::chrono::high_resolution_clock::now();
+    if (!cpuOutput || !gpuOutput) {
+        fprintf(stderr, "Error: Memory allocation failed for output images.\n");
+        if (inputImage) free(inputImage);
+        if (cpuOutput) free(cpuOutput);
+        if (gpuOutput) free(gpuOutput);
+        return 1;
+    }
+
+    clock_t cpuStart = clock();
     adaptiveThresholdCPU(inputImage, cpuOutput, width, height, windowSize, C);
-    auto cpuEnd = std::chrono::high_resolution_clock::now();
+    clock_t cpuEnd = clock();
 
-    double cpuMs = std::chrono::duration<double, std::milli>(cpuEnd - cpuStart).count();
+    double cpuMs = (double)(cpuEnd - cpuStart) / CLOCKS_PER_SEC * 1000.0;
 
-    dim3 blockSize(16, 16);
+    dim3 blockSize;
+    blockSize.x = 16;
+    blockSize.y = 16;
+    blockSize.z = 1;
+
     float gpuMs = adaptiveThresholdGPU(inputImage, gpuOutput, width, height, windowSize, C, blockSize);
     if (gpuMs < 0.0f) {
+        free(inputImage);
+        free(cpuOutput);
+        free(gpuOutput);
         return 1;
     }
 
     if (!writePGM("output_cpu.pgm", cpuOutput, width, height)) {
+        free(inputImage);
+        free(cpuOutput);
+        free(gpuOutput);
         return 1;
     }
     if (!writePGM("output_gpu.pgm", gpuOutput, width, height)) {
+        free(inputImage);
+        free(cpuOutput);
+        free(gpuOutput);
         return 1;
     }
 
@@ -343,13 +380,17 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    cout << "CPU time: " << cpuMs << " ms" << endl;
-    cout << "GPU time: " << gpuMs << " ms" << endl;
+    printf("CPU time: %f ms\n", cpuMs);
+    printf("GPU time: %f ms\n", gpuMs);
     if (gpuMs > 0.0f) {
-        cout << "Speedup (CPU/GPU): " << (cpuMs / gpuMs) << "x" << endl;
+        printf("Speedup (CPU/GPU): %fx\n", cpuMs / gpuMs);
     }
-    cout << "Mismatched pixels (CPU vs GPU): " << mismatchCount << endl;
-    cout << "Saved output_cpu.pgm and output_gpu.pgm" << endl;
+    printf("Mismatched pixels (CPU vs GPU): %d\n", mismatchCount);
+    printf("Saved output_cpu.pgm and output_gpu.pgm\n");
+
+    free(inputImage);
+    free(cpuOutput);
+    free(gpuOutput);
 
     return 0;
 }

@@ -1,0 +1,14 @@
+Convert PGM → JPG
+convert img.pgm img.jpg
+
+
+Convert PGM → PNG (better quality)
+convert img.pgm img.png
+
+
+Convert AVIG → PGM
+convert img.avif img.pgm
+
+
+Convert png → PGM
+convert img.png img.pgm
