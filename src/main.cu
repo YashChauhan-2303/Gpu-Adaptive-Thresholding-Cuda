@@ -4,7 +4,6 @@
 #include <string.h>
 #include <time.h>
 
-// Read next token from PGM file while skipping comments starting with '#'.
 static int readNextToken(FILE* in, char* token) {
     int c;
     while ((c = fgetc(in)) != EOF) {

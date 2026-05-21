@@ -1,0 +1,81 @@
+# Build and Output Directories
+bin/
+build/
+dist/
+out/
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.dylib
+*.dll
+
+# Executables
+*.exe
+*.out
+*.app
+
+# CUDA-specific
+*.cu.o
+*.cubin
+*.ptx
+*.fatbin
+
+# IDE and Editor Files
+.vscode/
+.vs/
+*.code-workspace
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Visual Studio
+*.sln
+*.vcxproj*
+*.user
+Debug/
+Release/
+x64/
+x86/
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.env
+
+# OS Files
+.DS_Store
+Thumbs.db
+*.log
+*.swp
+
+# Temporary Files
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# Dependencies
+dependencies/
+external/
+lib/
+
+# Data and Output (if large)
+# Uncomment if needed:
+# data/
+# output/
+# input/
