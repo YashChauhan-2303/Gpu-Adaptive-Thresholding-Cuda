@@ -1,152 +1,276 @@
 # 🚀 GPU-Accelerated Adaptive Thresholding using CUDA
 
-## 📌 Overview
-This project implements **Adaptive Thresholding for Document Binarization** using both:
-- 🟢 CPU (sequential)
-- 🔴 GPU (parallel using CUDA)
+A CUDA-based implementation of Adaptive Thresholding for document image binarization, designed to demonstrate the performance benefits of GPU parallelism for image processing workloads.
 
-The objective is to demonstrate how **GPU parallelism significantly improves performance** for computationally intensive image processing tasks.
+## Highlights
 
----
+✅ Achieved up to **193× speedup** over CPU implementation
 
-## 🧠 Problem Statement
-Traditional global thresholding fails for images with:
-- uneven lighting
-- shadows
-- faded text
+✅ Implemented pixel-level parallelism using **CUDA kernels**
 
-👉 Adaptive thresholding solves this by computing a **local threshold for each pixel**.
+✅ Verified CPU and GPU outputs for correctness
+
+✅ Demonstrates efficient GPU acceleration for adaptive image thresholding
 
 ---
 
-## ⚙️ Algorithm
+## Overview
 
-For each pixel `(x, y)`:
+Adaptive Thresholding is a document image preprocessing technique used to convert grayscale images into binary images.
 
-1. Take a window of size `W × W`
-2. Compute mean intensity:
+Unlike global thresholding, which applies a single threshold value to the entire image, adaptive thresholding computes a local threshold for every pixel based on its surrounding neighborhood.
 
+This makes it highly effective for:
+
+- Uneven illumination
+- Shadows
+- Low-contrast documents
+- Faded or degraded text
+
+---
+
+## Performance Results
+
+| Image Size | Window Size | CPU Time (ms) | GPU Time (ms) | Speedup |
+|------------|------------|---------------|---------------|----------|
+| 8 × 8 | 7 | 0.007 | 1.33 | 0.005× |
+| 700 × 1145 | 7 | 109.63 | 1.68 | 65× |
+| 700 × 1145 | 15 | 330.52 | 1.70 | 193× |
+
+### Key Observations
+
+- GPU overhead dominates for extremely small images.
+- Performance gains increase significantly as image size grows.
+- Larger window sizes benefit more from parallel execution.
+- CPU and GPU outputs were verified to be identical.
+
+---
+
+## Processing Pipeline
+
+```text
+Input Image (.avif)
+        ↓
+Convert to Grayscale PGM
+        ↓
+Adaptive Thresholding
+        ↓
+CPU Implementation
+        ↓
+GPU CUDA Implementation
+        ↓
+Performance Comparison
+        ↓
+Binary Output Image
+```
+
+---
+
+## Problem Statement
+
+Traditional thresholding techniques struggle when document images contain:
+
+- Non-uniform lighting
+- Background noise
+- Shadows
+- Faded text
+
+Adaptive thresholding addresses these limitations by computing a threshold locally for each pixel.
+
+---
+
+## Algorithm
+
+For every pixel `(x, y)`:
+
+### Step 1
+
+Select a local window of size:
+
+```text
+W × W
+```
+
+around the pixel.
+
+### Step 2
+
+Compute the local mean intensity:
+
+```text
 mean = sum(window pixels) / count
+```
 
-3. Compute threshold:
+### Step 3
 
+Compute the adaptive threshold:
+
+```text
 T = mean - C
+```
 
-4. Apply:
-- `pixel > T → 255 (white)`
-- else → `0 (black)`
+where:
 
----
+- `T` = threshold value
+- `C` = constant offset
 
-## ⚡ CPU vs GPU
+### Step 4
 
-### 🟢 CPU
-- Sequential processing using nested loops  
-- Processes one pixel at a time  
-- Computationally expensive  
+Apply binarization:
 
-### 🔴 GPU
-- One thread per pixel  
-- Thousands of threads run in parallel  
-- Significant speedup for large images  
+```text
+pixel > T  → 255 (white)
+otherwise  → 0 (black)
+```
 
 ---
 
-## 🧵 Parallelism Strategy
-Each CUDA thread processes one pixel independently.
+## CUDA Parallelization Strategy
 
-Threads are organized as:
-- Blocks → `16 × 16`
-- Grid → covers the entire image
+The algorithm is highly parallel because each output pixel can be computed independently.
 
-👉 This makes the problem **embarrassingly parallel**
+### CPU Version
 
----
+- Sequential execution
+- Nested loops
+- One pixel processed at a time
 
-## 📊 Performance Metric
+### GPU Version
 
-Speedup = CPU Time / GPU Time
+- One CUDA thread per pixel
+- Thousands of threads execute concurrently
+- Exploits massive parallelism available on modern GPUs
 
----
+### Thread Organization
 
-## 🖼️ Input Image
+```text
+Block Size : 16 × 16
+Grid Size  : Covers entire image
+```
 
-### 📥 Original Image
-![Input](img.avif)
-
----
-
-## 🧾 Output Images
-
-### 🟢 CPU Output
-![CPU Output](output_cpu.pgm)
-
-### 🔴 GPU Output
-![GPU Output](output_gpu.pgm)
+This design makes adaptive thresholding an **embarrassingly parallel problem**, ideal for GPU acceleration.
 
 ---
 
-## 📈 Results
+## Sample Results
 
-| Image Size | W  | CPU Time (ms) | GPU Time (ms) | Speedup |
-|------------|----|---------------|---------------|---------|
-| 8×8        | 7  | 0.007         | 1.33          | 0.005x  |
-| 700×1145   | 7  | 109.63        | 1.68          | 65x     |
-| 700×1145   | 15 | 330.52        | 1.70          | 193x    |
+### Original Image
 
----
+![Input Image](input/img.avif)
 
-## 🔍 Key Observations
+### CPU Output
 
-- GPU is slower for very small images due to overhead (memory transfer + kernel launch)
-- GPU achieves massive speedup for large images
-- Increasing window size improves GPU efficiency
-- CPU and GPU outputs match exactly (correctness verified)
+![CPU Output](docs/cpu_output.png)
+
+### GPU Output
+
+![GPU Output](docs/gpu_output.png)
 
 ---
 
-## 🛠️ Tech Stack
-- C++
+## Technologies Used
+
 - CUDA
-- PGM Image Processing
+- C++
+- NVIDIA GPU Programming
+- Image Processing
+- PGM Image Format
 
 ---
 
-## 📁 Project Structure
+## Repository Structure
 
-```
+```text
 .
-├── main.cu
-├── img.pgm
-├── img.avif
-├── output_cpu.pgm
-├── output_gpu.pgm
-├── sample.pgm
-├── README.md
+├── src/
+│   └── main.cu
+│
+├── input/
+│   └── img.avif
+│
+├── data/
+│   ├── img.pgm
+│   └── sample.pgm
+│
+├── output/
+│   ├── output_cpu.pgm
+│   ├── output_gpu.pgm
+│   └── output.png
+│
+├── docs/
+│   ├── result.md
+│   ├── result.png
+│   ├── cpu_output.png
+│   └── gpu_output.png
+│
+├── scripts/
+│   ├── commands.txt
+│   └── run
+│
+└── README.md
 ```
 
 ---
 
-## 🧪 Build & Run
+## Build Instructions
 
-### 🔧 Compile
-```bash
-nvcc main.cu -o run
-```
+### Compile
 
-### ▶️ Run
 ```bash
-./run img.pgm 7 5
+nvcc src/main.cu -o adaptive_threshold
 ```
 
-### ⚠️ Notes
-- Input must be PGM (P2 format)
-- Convert images using ImageMagick:
+### Run
+
 ```bash
-convert img.avif -colorspace Gray img.pgm
+./adaptive_threshold data/img.pgm 7 5
 ```
-- Convert output for viewing:
+
+Parameters:
+
+```text
+<input_image> <window_size> <constant_C>
+```
+
+Example:
+
 ```bash
-convert output_cpu.pgm output.png
-convert output_gpu.pgm result.png
+./adaptive_threshold data/img.pgm 15 5
 ```
+
+---
+
+## Image Conversion
+
+Convert AVIF image to grayscale PGM:
+
+```bash
+convert input/img.avif -colorspace Gray data/img.pgm
+```
+
+Convert output images for visualization:
+
+```bash
+convert output/output_cpu.pgm docs/cpu_output.png
+convert output/output_gpu.pgm docs/gpu_output.png
+```
+
+---
+
+## Future Improvements
+
+- Shared memory optimization
+- Integral image acceleration
+- Multi-GPU execution
+- CUDA stream-based overlapping
+- Real-time document processing pipeline
+
+---
+
+## Author
+
+**Yash Chauhan**
+
+B.Tech CSE, MIT Manipal
+
+GitHub: https://github.com/YashChauhan-2303
