@@ -1,0 +1,29 @@
+name: Build CUDA Project
+
+on:
+  push:
+    branches:
+      - main
+
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install CUDA Toolkit
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y nvidia-cuda-toolkit
+
+      - name: Compile CUDA Source
+        run: |
+          nvcc src/main.cu -o adaptive_threshold
+
+      - name: Verify Binary
+        run: |
+          test -f adaptive_threshold
