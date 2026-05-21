@@ -1,3 +1,5 @@
+![Build](https://github.com/YashChauhan-2303/Gpu-Adaptive-Thresholding-Cuda/actions/workflows/build.yml/badge.svg)
+
 # 🚀 GPU-Accelerated Adaptive Thresholding using CUDA
 
 A CUDA-based implementation of Adaptive Thresholding for document image binarization, designed to demonstrate the performance benefits of GPU parallelism for image processing workloads.
