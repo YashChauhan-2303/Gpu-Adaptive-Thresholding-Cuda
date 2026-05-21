@@ -1,4 +1,4 @@
-name: Build CUDA Project
+name: CUDA Build & Verification
 
 on:
   push:
@@ -24,6 +24,10 @@ jobs:
         run: |
           nvcc src/main.cu -o adaptive_threshold
 
-      - name: Verify Binary
+      - name: Verify Binary Exists
         run: |
           test -f adaptive_threshold
+
+      - name: Verify Source Exists
+        run: |
+          test -f data/sample.pgm
