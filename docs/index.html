@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPU Adaptive Thresholding using CUDA</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1100px;
+            margin: auto;
+            padding: 30px;
+            line-height: 1.6;
+        }
+
+        h1, h2 {
+            color: #222;
+        }
+
+        .hero {
+            background: #f5f5f5;
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+        }
+
+        .highlight {
+            color: #0b5cff;
+            font-weight: bold;
+        }
+
+        .comparison {
+            display: flex;
+            gap: 30px;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+
+        .comparison div {
+            flex: 1;
+            min-width: 300px;
+        }
+
+        img {
+            width: 100%;
+            border-radius: 10px;
+            border: 1px solid #ddd;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-top: 15px;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: center;
+        }
+
+        th {
+            background: #f0f0f0;
+        }
+
+        .card {
+            background: #fafafa;
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 25px;
+        }
+
+        .button {
+            display: inline-block;
+            padding: 12px 20px;
+            background: #0b5cff;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+
+        .button:hover {
+            opacity: 0.9;
+        }
+
+        footer {
+            margin-top: 50px;
+            text-align: center;
+            color: gray;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="hero">
+        <h1>🚀 GPU-Accelerated Adaptive Thresholding using CUDA</h1>
+
+        <p>
+            CUDA implementation of adaptive thresholding for document binarization.
+            This project demonstrates how GPU parallelism can dramatically accelerate
+            image-processing workloads.
+        </p>
+
+        <p>
+            <span class="highlight">Up to 193× faster</span> than the CPU implementation
+            while producing identical output.
+        </p>
+
+        <a class="button"
+           href="https://github.com/YashChauhan-2303/Gpu-Adaptive-Thresholding-Cuda">
+            View Source Code
+        </a>
+    </div>
+
+    <h2>📌 Project Overview</h2>
+
+    <p>
+        Adaptive thresholding converts grayscale images into binary images by computing
+        a local threshold for every pixel. Unlike global thresholding, it performs
+        well under uneven lighting, shadows, and faded text.
+    </p>
+
+    <div class="card">
+        <h3>Processing Pipeline</h3>
+
+<pre>
+Input Image (.avif)
+        ↓
+Convert to Grayscale PGM
+        ↓
+Adaptive Thresholding
+        ↓
+CPU Implementation
+        ↓
+GPU CUDA Implementation
+        ↓
+Performance Comparison
+        ↓
+Binary Output Image
+</pre>
+
+    </div>
+
+    <h2>🖼️ Results</h2>
+
+    <div class="comparison">
+
+        <div>
+            <h3>Input Image</h3>
+            <img src="../input/img.avif" alt="Input Image">
+        </div>
+
+        <div>
+            <h3>Thresholded Output</h3>
+            <img src="../output/output.png" alt="Output Image">
+        </div>
+
+    </div>
+
+    <h2>⚡ Performance Benchmark</h2>
+
+    <table>
+        <tr>
+            <th>Image Size</th>
+            <th>Window Size</th>
+            <th>CPU Time (ms)</th>
+            <th>GPU Time (ms)</th>
+            <th>Speedup</th>
+        </tr>
+
+        <tr>
+            <td>700 × 1145</td>
+            <td>15</td>
+            <td>330.52</td>
+            <td>1.70</td>
+            <td><strong>193×</strong></td>
+        </tr>
+
+        <tr>
+            <td>700 × 1145</td>
+            <td>7</td>
+            <td>109.63</td>
+            <td>1.68</td>
+            <td><strong>65×</strong></td>
+        </tr>
+    </table>
+
+    <div class="card">
+        <h2>🔍 Key Takeaways</h2>
+
+        <ul>
+            <li>One CUDA thread processes one pixel.</li>
+            <li>Highly parallel workload with minimal thread dependency.</li>
+            <li>GPU acceleration becomes increasingly effective as image size grows.</li>
+            <li>CPU and GPU outputs were verified for correctness.</li>
+            <li>Achieved up to 193× speedup compared to sequential execution.</li>
+        </ul>
+    </div>
+
+    <div class="card">
+        <h2>🛠️ Technologies Used</h2>
+
+        <ul>
+            <li>CUDA</li>
+            <li>C++</li>
+            <li>GPU Computing</li>
+            <li>Image Processing</li>
+            <li>PGM Image Format</li>
+        </ul>
+    </div>
+
+    <footer>
+        Built by Yash Chauhan • CUDA Project Showcase
+    </footer>
+
+</body>
+</html>
